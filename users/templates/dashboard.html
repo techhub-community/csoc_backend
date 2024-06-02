@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dashboard</title>
+</head>
+<body>
+    <h1>Dashboard</h1>
+    <p> {{user.name}} </p>
+    {% if user.role == 'mentee' %}
+        <h2>Your Teams</h2>
+        <ul>
+            {% for membership in teams %}
+                <li>{{ membership.team.name }} (Program: {{ membership.team.program.name }})</li>
+            {% endfor %}
+        </ul>
+        <h2>Pending Invitations</h2>
+        <ul>
+            {% for invitation in invitations %}
+                <li>
+                    {{ invitation.team.name }} (Program: {{ invitation.team.program.name }})
+                    <a href="{% url 'join_team' invitation.id %}">Join</a>
+                </li>
+            {% endfor %}
+        </ul>
+        <a href="{% url 'create_team' %}">Create a new team</a>
+    {% elif user.role == 'mentor' %}
+        <h2>Your Mentees</h2>
+        <ul>
+            {% for membership in mentees %}
+                <li>{{ membership.user.username }} (Team: {{ membership.team.name }})</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+</body>
+</html>
