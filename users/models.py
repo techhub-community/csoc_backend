@@ -16,8 +16,8 @@ class CustomUser(AbstractUser):
     is_active = models.BooleanField(default=True)
     date_joined = models.DateTimeField(default=timezone.now)
     role = models.CharField(max_length=6, choices=ROLE_CHOICES)
-    first_name = models.CharField(max_length=100)
-    last_name = models.CharField(max_length=100)
+    first_name = models.CharField(max_length=100, blank=True, null=True)
+    last_name = models.CharField(max_length=100, blank= True, null = True)
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []
