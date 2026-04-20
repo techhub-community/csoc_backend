@@ -13,14 +13,14 @@ let _db: Kysely<Database>;
 
 export let API_KEY = "";
 export let JWT_SECRET = new TextEncoder().encode('');
-export const frontDomain = 'https://csoc.040203.xyz' as const;
-export const backDomain = 'https://csoc-api.040203.xyz' as const;
+export const frontDomain = 'https://csoc.codeshack.in' as const;
+export const backDomain = 'https://csoc_backend.avinashpal24013.workers.dev' as const;
 
 export async function signPayload(payload: any, expireIn: string = "1h") {
   return await new jose.SignJWT(payload)
-  .setProtectedHeader({ alg: 'HS256' })
-  .setExpirationTime(expireIn)
-  .sign(JWT_SECRET);
+    .setProtectedHeader({ alg: 'HS256' })
+    .setExpirationTime(expireIn)
+    .sign(JWT_SECRET);
 }
 
 export function database(set?: D1Database) {
@@ -55,7 +55,7 @@ export async function sendMail(name: string, to: string, subject: string, body: 
     textContent: body.text,
     htmlContent: body.html ? juice(body.html) : undefined
   };
-  
+
   const resp = await fetch('https://api.brevo.com/v3/smtp/email', {
     body: JSON.stringify(data),
     method: 'POST',
