@@ -10,6 +10,8 @@ const mobileRegex = /^[0-9]{10}$/;
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]{8,}$/;
 
+const VALID_DOMAINS = ['web', 'app', 'dsa', 'aiml', 'uiux'] as const;
+
 authApp.post('/login', async (c) => {
   const { email, password } = await c.req.json();
   const db = database();
@@ -30,6 +32,7 @@ authApp.post('/login', async (c) => {
     props: JSON.parse(user.props ?? "{}"),
     verified: user.verified,
     program: user.program,
+    role: user.role ?? 'mentee',
     about: user.about,
     name: user.name,
     token,
@@ -54,6 +57,7 @@ authApp.post('/session', async (c) => {
       props: JSON.parse(user.props ?? "{}"),
       verified: user.verified,
       program: user.program,
+      role: user.role ?? 'mentee',
       about: user.about,
       name: user.name,
       usn: user.usn,
@@ -66,20 +70,32 @@ authApp.post('/session', async (c) => {
 });
 
 authApp.post('/register', async (c) => {
-  const { name, password, email, usn, mobile, about, opt, program } = await c.req.json();
+  const { name, password, email, usn: rawUsn, mobile, about, opt, program, role: rawRole } = await c.req.json();
   const hashedPassword = bcrypt.hashSync(password, 10);
   const db = database();
 
-  if (typeof usn !== "string" || usn.length !== 10 || !usn.toLowerCase().startsWith("1mv2"))
-    return c.json({ error: "Invalid or Unacceptable USN" }, 400);
+  // Validate role
+  const role = rawRole === 'mentor' ? 'mentor' : 'mentee';
 
-  if (!(usn.toLowerCase().startsWith("1mv24") || (usn.toLowerCase().startsWith("1mv23") && program !== "dsa")))
-    return c.json({ error: "First years (1mv24) can register for any program, while second years (1mv23) can only register for web or app programs" }, 400);
+  // Validate program (required for both mentors and mentees)
+  if (!VALID_DOMAINS.includes(program)) return c.json({ error: 'Invalid program selected. Must be one of: web, app, dsa, aiml, uiux' }, 400);
+
+  // USN validation — mentors skip it entirely
+  let usn: string;
+  if (role === 'mentor') {
+    usn = '';
+  } else {
+    usn = rawUsn as string;
+    if (typeof usn !== 'string' || usn.length !== 10 || !usn.toLowerCase().startsWith('1mv2'))
+      return c.json({ error: 'Invalid or Unacceptable USN' }, 400);
+
+    if (!(usn.toLowerCase().startsWith('1mv24') || (usn.toLowerCase().startsWith('1mv23') && !['dsa', 'aiml', 'uiux'].includes(program))))
+      return c.json({ error: 'First years (1mv24) can register for any program, while second years (1mv23) can only register for web or app programs' }, 400);
+  }
 
   if (!emailRegex.test(email)) return c.json({ error: 'Invalid email format' }, 400);
   if (!mobileRegex.test(mobile)) return c.json({ error: 'Invalid mobile number' }, 400);
-  if (!["web", "app", "dsa"].includes(program)) return c.json({ error: 'Invalid program selected' }, 400);
-  if (!passwordRegex.test(password)) return c.json({ error: 'Invalid password format must conatain at least one letter and one number and at least 8 characters long' }, 400);
+  if (!passwordRegex.test(password)) return c.json({ error: 'Invalid password format: must contain at least one letter and one number and be at least 8 characters long' }, 400);
 
   const newUser = {
     password: hashedPassword,
@@ -89,7 +105,8 @@ authApp.post('/register', async (c) => {
     email,
     about,
     name,
-    usn
+    usn,
+    role
   };
 
   try {
@@ -113,8 +130,8 @@ authApp.post('/register', async (c) => {
           };
 
         if (program !== senderProgram) return c.json({ error: 'Registration successful but Mismatching program found' }, 400);
-        const idReq = await db.selectFrom("users").select("id")
-          .where("email", "=", email).executeTakeFirst();
+        const idReq = await db.selectFrom('users').select('id')
+          .where('email', '=', email).executeTakeFirst();
         if (!idReq) return c.json({ error: 'Registration successful but Mismatching email found' }, 400);
 
         if (!(await addToTeam(sender, idReq.id, program)))

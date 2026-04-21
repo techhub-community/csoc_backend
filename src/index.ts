@@ -4,6 +4,8 @@ import { testApp } from './test';
 import { authApp } from './auth';
 import { flowsApp } from './flows';
 import { teamsApp } from './teams';
+import { quizApp } from './quiz';
+import { assignmentApp } from './assignment';
 import { database, setAPIKey, setJWTSecret } from './configs';
 
 const app = new Hono<{ Bindings: {
@@ -31,6 +33,8 @@ app.route("/", authApp);
 app.route("/", testApp);
 app.route("/", flowsApp);
 app.route("/", teamsApp);
+app.route("/", quizApp);
+app.route("/", assignmentApp);
 
 app.notFound((c) => c.json({
   error: 'Not found'

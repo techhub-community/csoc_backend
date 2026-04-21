@@ -11,6 +11,7 @@ interface UserTable {
   about?: string;
   props?: string;
   verified: boolean;
+  role?: string; // 'mentor' | 'mentee' — defaults to 'mentee' in DB
 }
 
 interface MessageTable {
@@ -36,9 +37,67 @@ interface RequestTable {
   sender_id: number;
 }
 
+// ─── Quiz Tables ─────────────────────────────────────────────────────────────
+
+interface QuizTable {
+  quiz_id: Generated<number>;
+  title: string;
+  domain: string;       // web | app | dsa | aiml | uiux
+  created_by: number;   // FK → users.id
+  created_at: Generated<number>;
+}
+
+interface QuizQuestionTable {
+  question_id: Generated<number>;
+  quiz_id: number;      // FK → quizzes.quiz_id (CASCADE DELETE)
+  question_text: string;
+  option_a: string;
+  option_b: string;
+  option_c: string;
+  option_d: string;
+  correct_option: string; // 'a' | 'b' | 'c' | 'd'
+}
+
+interface QuizAttemptTable {
+  attempt_id: Generated<number>;
+  quiz_id: number;      // FK → quizzes.quiz_id
+  user_id: number;      // FK → users.id
+  score: number;
+  total: number;
+  answers: string;      // JSON string: { question_id: chosen_option }
+  attempted_at: Generated<number>;
+}
+
+// ─── Assignment Tables ────────────────────────────────────────────────────────
+
+interface AssignmentTable {
+  assignment_id: Generated<number>;
+  title: string;
+  description: string;
+  domain: string;       // web | app | dsa | aiml | uiux
+  created_by: number;   // FK → users.id
+  created_at: Generated<number>;
+}
+
+interface AssignmentSubmissionTable {
+  submission_id: Generated<number>;
+  assignment_id: number; // FK → assignments.assignment_id
+  user_id: number;       // FK → users.id
+  github_link?: string;
+  text_answer?: string;
+  submitted_at: Generated<number>;
+}
+
 export interface Database {
   messages: MessageTable;
   requests: RequestTable;
   teams: TeamTable;
   users: UserTable;
+  // Quiz feature
+  quizzes: QuizTable;
+  quiz_questions: QuizQuestionTable;
+  quiz_attempts: QuizAttemptTable;
+  // Assignment feature
+  assignments: AssignmentTable;
+  assignment_submissions: AssignmentSubmissionTable;
 }
