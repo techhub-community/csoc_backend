@@ -70,7 +70,7 @@ authApp.post('/session', async (c) => {
 });
 
 authApp.post('/register', async (c) => {
-  const { name, password, email, usn: rawUsn, mobile, about, opt, program, role: rawRole } = await c.req.json();
+  const { name, password, email, usn: rawUsn, mobile, about, opt, program, role: rawRole, mentor_key } = await c.req.json();
   const hashedPassword = bcrypt.hashSync(password, 10);
   const db = database();
 
@@ -80,10 +80,15 @@ authApp.post('/register', async (c) => {
   // Validate program (required for both mentors and mentees)
   if (!VALID_DOMAINS.includes(program)) return c.json({ error: 'Invalid program selected. Must be one of: web, app, dsa, aiml, uiux' }, 400);
 
-  // USN validation — mentors skip it entirely
-  let usn: string;
+  // USN or Mentor Key validation
+  let usn: string = '';
   if (role === 'mentor') {
-    usn = '';
+    // Mentors use a special key instead of a USN. 
+    // They can pass it as `mentor_key` or just type it into the frontend's USN field.
+    const providedKey = mentor_key || rawUsn;
+    if (providedKey !== 'secret_mentor_key_123') {
+      return c.json({ error: 'Invalid mentor registration key' }, 403);
+    }
   } else {
     usn = rawUsn as string;
     if (typeof usn !== 'string' || usn.length !== 10 || !usn.toLowerCase().startsWith('1mv2'))
