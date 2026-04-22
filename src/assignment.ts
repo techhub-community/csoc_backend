@@ -76,7 +76,7 @@ assignmentApp.get('/assignment/list', async (c) => {
   const role = user.role ?? 'mentee';
 
   if (role === 'mentor') {
-    const assignments = await db.selectFrom('assignments')
+    const assignments = await db.selectFrom('assignments').selectAll()
       .where('created_by', '=', user.id as number)
       .select(['assignment_id', 'title', 'description', 'domain', 'created_at', 'due_date', 'reference_link'])
       .execute();
@@ -85,13 +85,13 @@ assignmentApp.get('/assignment/list', async (c) => {
   }
 
   // Mentee: return assignments for their domain with submitted flag
-  const assignments = await db.selectFrom('assignments')
+  const assignments = await db.selectFrom('assignments').selectAll()
     .where('domain', '=', user.program)
     .select(['assignment_id', 'title', 'description', 'domain', 'created_at', 'due_date', 'reference_link'])
     .execute();
 
   const enriched = await Promise.all(assignments.map(async (asgn) => {
-    const sub = await db.selectFrom('assignment_submissions')
+    const sub = await db.selectFrom('assignment_submissions').selectAll()
       .where('assignment_id', '=', asgn.assignment_id as number)
       .where('user_id', '=', user!.id as number)
       .select('submission_id')
@@ -128,7 +128,7 @@ assignmentApp.post('/assignment/:assignment_id/submit', async (c) => {
     return c.json({ error: 'Exactly ONE of github_link or text_answer must be provided' }, 400);
 
   const db = database();
-  const assignment = await db.selectFrom('assignments')
+  const assignment = await db.selectFrom('assignments').selectAll()
     .where('assignment_id', '=', assignment_id)
     .select(['domain'])
     .executeTakeFirst();
@@ -137,7 +137,7 @@ assignmentApp.post('/assignment/:assignment_id/submit', async (c) => {
   if (assignment.domain !== user.program)
     return c.json({ error: 'You do not have access to this assignment' }, 403);
 
-  const existing = await db.selectFrom('assignment_submissions')
+  const existing = await db.selectFrom('assignment_submissions').selectAll()
     .where('assignment_id', '=', assignment_id)
     .where('user_id', '=', user.id as number)
     .select('submission_id')
@@ -177,7 +177,7 @@ assignmentApp.get('/assignment/:assignment_id/submissions', async (c) => {
   if (isNaN(assignment_id)) return c.json({ error: 'Invalid assignment ID' }, 400);
 
   const db = database();
-  const assignment = await db.selectFrom('assignments')
+  const assignment = await db.selectFrom('assignments').selectAll()
     .where('assignment_id', '=', assignment_id)
     .select(['created_by'])
     .executeTakeFirst();
@@ -186,7 +186,7 @@ assignmentApp.get('/assignment/:assignment_id/submissions', async (c) => {
   if (assignment.created_by !== (user.id as number))
     return c.json({ error: 'You can only view submissions for your own assignments' }, 403);
 
-  const submissions = await db.selectFrom('assignment_submissions')
+  const submissions = await db.selectFrom('assignment_submissions').selectAll()
     .innerJoin('users', 'assignment_submissions.user_id', 'users.id')
     .where('assignment_id', '=', assignment_id)
     .select([
@@ -226,7 +226,7 @@ assignmentApp.delete('/assignment/:assignment_id', async (c) => {
   if (isNaN(assignment_id)) return c.json({ error: 'Invalid assignment ID' }, 400);
 
   const db = database();
-  const assignment = await db.selectFrom('assignments')
+  const assignment = await db.selectFrom('assignments').selectAll()
     .where('assignment_id', '=', assignment_id)
     .select(['created_by'])
     .executeTakeFirst();
@@ -260,7 +260,7 @@ assignmentApp.get('/assignment/:assignment_id/submission', async (c) => {
   if (isNaN(assignment_id)) return c.json({ error: 'Invalid ID' }, 400);
 
   const db = database();
-  const sub = await db.selectFrom('assignment_submissions')
+  const sub = await db.selectFrom('assignment_submissions').selectAll()
     .where('assignment_id', '=', assignment_id)
     .where('user_id', '=', user.id as number)
     .selectAll()
@@ -292,7 +292,7 @@ assignmentApp.patch('/assignment/:assignment_id/submissions/:submission_id/grade
   if (isNaN(assignment_id) || isNaN(submission_id)) return c.json({ error: 'Invalid IDs' }, 400);
 
   const db = database();
-  const assignment = await db.selectFrom('assignments')
+  const assignment = await db.selectFrom('assignments').selectAll()
     .where('assignment_id', '=', assignment_id)
     .select(['created_by'])
     .executeTakeFirst();

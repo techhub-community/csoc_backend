@@ -44,7 +44,8 @@ app.onError((err, c) => {
   console.log(err);
   
   return c.json({
-    error: "Check your input then try again"
+    error: err.message || "An error occurred",
+    stack: err.stack
   }, 400);
 });
 

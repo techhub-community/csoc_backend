@@ -202,13 +202,13 @@ authApp.post('/update-password', async (c) => {
 async function getTeamNInviteData(userId: number, program: string) {
   const db = database();
 
-  const suggestions = (await db.selectFrom('users')
+  const suggestions = (await db.selectFrom('users').selectAll()
     .select('email').where(qb =>
       qb('program', '=', program)
         .and("id", "!=", userId)
     ).execute()).map(u => u.email);
 
-  const inviteRec = await db.selectFrom("requests")
+  const inviteRec = await db.selectFrom('requests').selectAll()
     .innerJoin("users", "sender_id", "users.id")
     .select([
       "users.name as sender_name",
@@ -217,7 +217,7 @@ async function getTeamNInviteData(userId: number, program: string) {
     .where("receiver_id", "=", userId)
     .executeTakeFirst();
 
-  const pendings = await db.selectFrom("requests")
+  const pendings = await db.selectFrom('requests').selectAll()
     .innerJoin("users", "receiver_id", "users.id")
     .select(["users.email as receiver"])
     .where("sender_id", "=", userId)
@@ -228,7 +228,7 @@ async function getTeamNInviteData(userId: number, program: string) {
     name: inviteRec.sender_name
   } : null;
 
-  const teamRec = await db.selectFrom('teams')
+  const teamRec = await db.selectFrom('teams').selectAll()
     .leftJoin('users as member1', 'teams.member1_id', 'member1.id')
     .leftJoin('users as member2', 'teams.member2_id', 'member2.id')
     .leftJoin('users as leader', 'teams.leader_id', 'leader.id')

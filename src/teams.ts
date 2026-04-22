@@ -29,7 +29,7 @@ teamsApp.post('/send-invite', async (c) => {
   if (existingTeam && (existingTeam.leader_id !== sender.id || existingTeam.filled))
     return c.json({ error: 'You are not allowed to send invites.' }, 400);
 
-  const pendingInvites = await db.selectFrom("requests").selectAll()
+  const pendingInvites = await db.selectFrom('requests').selectAll()
     .where("receiver_id", '=', sender.id)
     .executeTakeFirst();
 
@@ -68,13 +68,13 @@ teamsApp.post('/send-invite', async (c) => {
     if (receiver.program !== sender.program) continue; // Program should be same for all team members
     if (sender.id === receiver.id) continue; // Can't invite yourself
 
-    const hasInvites = await db.selectFrom("requests").selectAll()
+    const hasInvites = await db.selectFrom('requests').selectAll()
       .where("receiver_id", '=', receiver.id)
       .executeTakeFirst();
     
     if (hasInvites) continue; // Already has an invite so can't send a new one
 
-    const teamJoined = await db.selectFrom("teams").selectAll()
+    const teamJoined = await db.selectFrom('teams').selectAll()
       .where(qb => qb('leader_id', '=', receiver.id)
         .or('member1_id', '=', receiver.id)
         .or('member2_id', '=', receiver.id)
@@ -139,7 +139,7 @@ teamsApp.post('/process-invite', async (c) => {
 export async function addToTeam(sender: number, receiver: number, program: string) {
   const db = database();
 
-  const team = await db.selectFrom("teams").selectAll()
+  const team = await db.selectFrom('teams').selectAll()
     .where(qb => qb('leader_id', '=', sender)
       .or('member1_id', '=', sender)
       .or('member2_id', '=', sender)

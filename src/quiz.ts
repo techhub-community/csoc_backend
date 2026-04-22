@@ -99,18 +99,18 @@ quizApp.get('/quiz/list', async (c) => {
   const role = user.role ?? 'mentee';
 
   if (role === 'mentor') {
-    const quizzes = await db.selectFrom('quizzes')
+    const quizzes = await db.selectFrom('quizzes').selectAll()
       .where('created_by', '=', user.id as number)
       .selectAll()
       .execute();
 
     const enriched = await Promise.all(quizzes.map(async (quiz) => {
-      const countRow = await db.selectFrom('quiz_questions')
+      const countRow = await db.selectFrom('quiz_questions').selectAll()
         .where('quiz_id', '=', quiz.quiz_id as number)
         .select(db.fn.count('question_id').as('question_count'))
         .executeTakeFirst();
         
-      const attemptsCount = await db.selectFrom('quiz_attempts')
+      const attemptsCount = await db.selectFrom('quiz_attempts').selectAll()
         .where('quiz_id', '=', quiz.quiz_id as number)
         .where('is_submitted', '=', 1)
         .select(db.fn.count('user_id').distinct().as('mentee_count'))
@@ -130,19 +130,19 @@ quizApp.get('/quiz/list', async (c) => {
   }
 
   // Mentee: return active quizzes
-  const quizzes = await db.selectFrom('quizzes')
+  const quizzes = await db.selectFrom('quizzes').selectAll()
     .where('domain', '=', user.program)
     .where('is_active', '=', 1)
     .selectAll()
     .execute();
 
   const enriched = await Promise.all(quizzes.map(async (quiz) => {
-    const countRow = await db.selectFrom('quiz_questions')
+    const countRow = await db.selectFrom('quiz_questions').selectAll()
       .where('quiz_id', '=', quiz.quiz_id as number)
       .select(db.fn.count('question_id').as('question_count'))
       .executeTakeFirst();
 
-    const attempt = await db.selectFrom('quiz_attempts')
+    const attempt = await db.selectFrom('quiz_attempts').selectAll()
       .where('quiz_id', '=', quiz.quiz_id as number)
       .where('user_id', '=', user!.id as number)
       .select('is_submitted')
@@ -180,7 +180,7 @@ quizApp.get('/quiz/:quiz_id/questions', async (c) => {
   if (isNaN(quiz_id)) return c.json({ error: 'Invalid quiz ID' }, 400);
 
   const db = database();
-  const quiz = await db.selectFrom('quizzes')
+  const quiz = await db.selectFrom('quizzes').selectAll()
     .where('quiz_id', '=', quiz_id)
     .selectAll()
     .executeTakeFirst();
@@ -188,7 +188,7 @@ quizApp.get('/quiz/:quiz_id/questions', async (c) => {
   if (!quiz || quiz.is_active !== 1) return c.json({ error: 'Quiz not available' }, 404);
   if (quiz.domain !== user.program) return c.json({ error: 'You do not have access to this quiz' }, 403);
 
-  const attempt = await db.selectFrom('quiz_attempts')
+  const attempt = await db.selectFrom('quiz_attempts').selectAll()
     .where('quiz_id', '=', quiz_id)
     .where('user_id', '=', user.id as number)
     .select(['attempt_id', 'is_submitted'])
@@ -197,7 +197,7 @@ quizApp.get('/quiz/:quiz_id/questions', async (c) => {
   if (!attempt) return c.json({ error: 'Start the quiz first' }, 403);
   if (attempt.is_submitted === 1) return c.json({ error: 'Already submitted' }, 403);
 
-  const questions = await db.selectFrom('quiz_questions')
+  const questions = await db.selectFrom('quiz_questions').selectAll()
     .where('quiz_id', '=', quiz_id)
     .select(['question_id', 'question_text', 'option_a', 'option_b', 'option_c', 'option_d', 'marks'])
     .execute();
@@ -220,10 +220,10 @@ quizApp.post('/quiz/:quiz_id/start', async (c) => {
 
   const quiz_id = Number(c.req.param('quiz_id'));
   const db = database();
-  const quiz = await db.selectFrom('quizzes').where('quiz_id', '=', quiz_id).executeTakeFirst();
+  const quiz = await db.selectFrom('quizzes').selectAll().where('quiz_id', '=', quiz_id).executeTakeFirst();
   if (!quiz || quiz.is_active !== 1) return c.json({ error: 'Not available' }, 404);
 
-  const exist = await db.selectFrom('quiz_attempts')
+  const exist = await db.selectFrom('quiz_attempts').selectAll()
     .where('quiz_id', '=', quiz_id)
     .where('user_id', '=', user.id as number)
     .executeTakeFirst();
@@ -251,7 +251,7 @@ quizApp.post('/quiz/:quiz_id/submit', async (c) => {
   const quiz_id = Number(c.req.param('quiz_id'));
   const db = database();
 
-  const attempt = await db.selectFrom('quiz_attempts')
+  const attempt = await db.selectFrom('quiz_attempts').selectAll()
     .where('quiz_id', '=', quiz_id)
     .where('user_id', '=', user.id as number)
     .executeTakeFirst();
@@ -259,7 +259,7 @@ quizApp.post('/quiz/:quiz_id/submit', async (c) => {
   if (!attempt) return c.json({ error: 'Start quiz first' }, 403);
   if (attempt.is_submitted === 1) return c.json({ error: 'Already submitted' }, 403);
 
-  const questions = await db.selectFrom('quiz_questions').where('quiz_id', '=', quiz_id).execute();
+  const questions = await db.selectFrom('quiz_questions').selectAll().where('quiz_id', '=', quiz_id).execute();
   
   let total_score = 0;
   let answersToInsert: any[] = [];
@@ -303,13 +303,13 @@ quizApp.get('/quiz/:quiz_id/result', async (c) => {
   const quiz_id = Number(c.req.param('quiz_id'));
   const db = database();
 
-  const attempt = await db.selectFrom('quiz_attempts')
+  const attempt = await db.selectFrom('quiz_attempts').selectAll()
     .where('quiz_id', '=', quiz_id).where('user_id', '=', user.id as number)
     .executeTakeFirst();
 
   if (!attempt || attempt.is_submitted === 0) return c.json({ error: 'Not submitted' }, 403);
 
-  const qData = await db.selectFrom('quiz_questions')
+  const qData = await db.selectFrom('quiz_questions').selectAll()
     .where('quiz_id', '=', quiz_id)
     .leftJoin('quiz_answers', join => join
       .onRef('quiz_answers.question_id', '=', 'quiz_questions.question_id')
@@ -339,7 +339,7 @@ quizApp.patch('/quiz/:quiz_id/active', async (c) => {
 
   const quiz_id = Number(c.req.param('quiz_id'));
   const db = database();
-  const quiz = await db.selectFrom('quizzes').where('quiz_id', '=', quiz_id).executeTakeFirst();
+  const quiz = await db.selectFrom('quizzes').selectAll().where('quiz_id', '=', quiz_id).executeTakeFirst();
   if (!quiz || quiz.created_by !== (user!.id as number)) return c.json({ error: 'Forbidden' }, 403);
 
   await db.updateTable('quizzes').set({ is_active: is_active ? 1 : 0 }).where('quiz_id', '=', quiz_id).execute();
@@ -355,10 +355,10 @@ quizApp.get('/quiz/:quiz_id/attempts', async (c) => {
 
   const quiz_id = Number(c.req.param('quiz_id'));
   const db = database();
-  const quiz = await db.selectFrom('quizzes').where('quiz_id', '=', quiz_id).executeTakeFirst();
+  const quiz = await db.selectFrom('quizzes').selectAll().where('quiz_id', '=', quiz_id).executeTakeFirst();
   if (!quiz || quiz.created_by !== (user!.id as number)) return c.json({ error: 'Forbidden' }, 403);
 
-  const attempts = await db.selectFrom('quiz_attempts')
+  const attempts = await db.selectFrom('quiz_attempts').selectAll()
     .innerJoin('users', 'quiz_attempts.user_id', 'users.id')
     .where('quiz_id', '=', quiz_id)
     .where('is_submitted', '=', 1)
@@ -379,13 +379,13 @@ quizApp.get('/quiz/:quiz_id/attempts/:mentee_id', async (c) => {
   const mentee_id = Number(c.req.param('mentee_id'));
   const db = database();
   
-  const quiz = await db.selectFrom('quizzes').where('quiz_id', '=', quiz_id).executeTakeFirst();
+  const quiz = await db.selectFrom('quizzes').selectAll().where('quiz_id', '=', quiz_id).executeTakeFirst();
   if (!quiz || quiz.created_by !== (user!.id as number)) return c.json({ error: 'Forbidden' }, 403);
 
-  const attempt = await db.selectFrom('quiz_attempts').where('quiz_id', '=', quiz_id).where('user_id', '=', mentee_id).executeTakeFirst();
+  const attempt = await db.selectFrom('quiz_attempts').selectAll().where('quiz_id', '=', quiz_id).where('user_id', '=', mentee_id).executeTakeFirst();
   if (!attempt) return c.json({ error: 'No attempt' }, 404);
 
-  const qData = await db.selectFrom('quiz_questions')
+  const qData = await db.selectFrom('quiz_questions').selectAll()
     .where('quiz_id', '=', quiz_id)
     .leftJoin('quiz_answers', join => join
       .onRef('quiz_answers.question_id', '=', 'quiz_questions.question_id')
@@ -418,7 +418,7 @@ quizApp.delete('/quiz/:quiz_id', async (c) => {
 
   const quiz_id = Number(c.req.param('quiz_id'));
   const db = database();
-  const quiz = await db.selectFrom('quizzes').where('quiz_id', '=', quiz_id).select(['created_by']).executeTakeFirst();
+  const quiz = await db.selectFrom('quizzes').selectAll().where('quiz_id', '=', quiz_id).select(['created_by']).executeTakeFirst();
 
   if (!quiz || quiz.created_by !== (user.id as number)) return c.json({ error: 'Forbidden' }, 403);
 
