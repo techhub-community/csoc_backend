@@ -86,7 +86,7 @@ authApp.post('/register', async (c) => {
     // Mentors use a special key instead of a USN. 
     // They can pass it as `mentor_key` or just type it into the frontend's USN field.
     const providedKey = mentor_key || rawUsn;
-    if (providedKey !== 'secret_mentor_key_123') {
+    if (providedKey !== 'Csoc!@*2026') {
       return c.json({ error: 'Invalid mentor registration key' }, 403);
     }
   } else {
