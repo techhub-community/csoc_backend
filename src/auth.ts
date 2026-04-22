@@ -22,7 +22,7 @@ authApp.post('/login', async (c) => {
   const user = await db.selectFrom('users').selectAll()
     .where('email', '=', email)
     .executeTakeFirst();
-  
+
   if (!user || !(bcrypt.compareSync(password, user.password)))
     return c.json({ error: 'Wrong email or password' }, 401);
   const token = await signPayload({ email }, "7d");
@@ -49,9 +49,9 @@ authApp.post('/session', async (c) => {
     const user = await db.selectFrom('users').selectAll()
       .where('email', '=', email)
       .executeTakeFirst();
-    
+
     if (!user) return c.json({ valid: false }, 401);
-    
+
     return c.json({
       ...(await getTeamNInviteData(user.id, user.program)),
       props: JSON.parse(user.props ?? "{}"),
@@ -94,8 +94,11 @@ authApp.post('/register', async (c) => {
     if (typeof usn !== 'string' || usn.length !== 10 || !usn.toLowerCase().startsWith('1mv2'))
       return c.json({ error: 'Invalid or Unacceptable USN' }, 400);
 
-    if (!(usn.toLowerCase().startsWith('1mv24') || (usn.toLowerCase().startsWith('1mv23') && !['dsa', 'aiml', 'uiux'].includes(program))))
-      return c.json({ error: 'First years (1mv24) can register for any program, while second years (1mv23) can only register for web or app programs' }, 400);
+    // if (!(usn.toLowerCase().startsWith('1mv25') || (usn.toLowerCase().startsWith('1mv24') && !['dsa', 'aiml', 'uiux'].includes(program))))
+    //   return c.json({ error: 'First years (1mv25) can register for any program, while second years (1mv24) can only register for web or app programs' }, 400);
+    // only usn 1mv25 and 1mv24 can register
+    if (!(usn.toLowerCase().startsWith('1mv25') || usn.toLowerCase().startsWith('1mv24')))
+      return c.json({ error: 'Registrations are open only for first and second year students.' }, 400);
   }
 
   if (!emailRegex.test(email)) return c.json({ error: 'Invalid email format' }, 400);
@@ -138,7 +141,7 @@ authApp.post('/register', async (c) => {
         return c.json({ error: 'Registration successful but unable to join team' }, 500);
       }
     }
-    
+
     return c.json({ message: 'User registered successfully.' }, 201);
   } catch (error) {
     console.log(error);
@@ -154,7 +157,7 @@ authApp.post('/reset-password', async (c) => {
     const email = (await jose.jwtVerify(token, JWT_SECRET)).payload.email as string;
     if (!passwordRegex.test(newPassword)) return c.json({ error: 'Invalid password format' }, 400);
     const hashedPassword = bcrypt.hashSync(newPassword, 10);
-    
+
     await db.updateTable('users')
       .where('email', '=', email)
       .set({ password: hashedPassword }).execute();
@@ -167,10 +170,10 @@ authApp.post('/reset-password', async (c) => {
 
 authApp.post('/update-password', async (c) => {
   const { token, oldPass, newPass } = await c.req.json();
-    if (!passwordRegex.test(newPass))
-      return c.json({ error: 'Invalid password format' }, 400);
-  
-    const db = database();
+  if (!passwordRegex.test(newPass))
+    return c.json({ error: 'Invalid password format' }, 400);
+
+  const db = database();
 
   try {
     const { payload } = await jose.jwtVerify(token, JWT_SECRET);
@@ -189,7 +192,7 @@ authApp.post('/update-password', async (c) => {
     await db.updateTable("users").set({ password: hashedNewPassword })
       .where('email', '=', email)
       .execute();
-    
+
     return c.json({ success: true });
   } catch (e) {
     return c.json({ error: 'Invalid token' }, 401);
@@ -202,7 +205,7 @@ async function getTeamNInviteData(userId: number, program: string) {
   const suggestions = (await db.selectFrom('users')
     .select('email').where(qb =>
       qb('program', '=', program)
-      .and("id", "!=", userId)
+        .and("id", "!=", userId)
     ).execute()).map(u => u.email);
 
   const inviteRec = await db.selectFrom("requests")
@@ -216,7 +219,7 @@ async function getTeamNInviteData(userId: number, program: string) {
 
   const pendings = await db.selectFrom("requests")
     .innerJoin("users", "receiver_id", "users.id")
-    .select([ "users.email as receiver" ])
+    .select(["users.email as receiver"])
     .where("sender_id", "=", userId)
     .execute();
 
