@@ -18,7 +18,7 @@ async function getAuthUser(token: string) {
 
 assignmentApp.post('/assignment/create', async (c) => {
   const body = await c.req.json();
-  const { token, title, description } = body;
+  const { token, title, description, due_date, reference_link } = body;
 
   if (!token) return c.json({ error: 'Unauthorized' }, 401);
 
@@ -41,7 +41,14 @@ assignmentApp.post('/assignment/create', async (c) => {
   const domain = user.program;
 
   const result = await db.insertInto('assignments')
-    .values({ title: title.trim(), description: description.trim(), domain, created_by: user.id as number })
+    .values({ 
+      title: title.trim(), 
+      description: description.trim(), 
+      domain, 
+      created_by: user.id as number,
+      due_date: typeof due_date === 'number' ? due_date : undefined,
+      reference_link: typeof reference_link === 'string' ? reference_link.trim() : undefined
+    })
     .returning('assignment_id')
     .executeTakeFirst();
 
@@ -71,7 +78,7 @@ assignmentApp.get('/assignment/list', async (c) => {
   if (role === 'mentor') {
     const assignments = await db.selectFrom('assignments')
       .where('created_by', '=', user.id as number)
-      .select(['assignment_id', 'title', 'description', 'domain', 'created_at'])
+      .select(['assignment_id', 'title', 'description', 'domain', 'created_at', 'due_date', 'reference_link'])
       .execute();
 
     return c.json(assignments, 200);
@@ -80,7 +87,7 @@ assignmentApp.get('/assignment/list', async (c) => {
   // Mentee: return assignments for their domain with submitted flag
   const assignments = await db.selectFrom('assignments')
     .where('domain', '=', user.program)
-    .select(['assignment_id', 'title', 'description', 'domain', 'created_at'])
+    .select(['assignment_id', 'title', 'description', 'domain', 'created_at', 'due_date', 'reference_link'])
     .execute();
 
   const enriched = await Promise.all(assignments.map(async (asgn) => {
@@ -117,8 +124,8 @@ assignmentApp.post('/assignment/:assignment_id/submit', async (c) => {
   const assignment_id = Number(c.req.param('assignment_id'));
   if (isNaN(assignment_id)) return c.json({ error: 'Invalid assignment ID' }, 400);
 
-  if (!github_link && !text_answer)
-    return c.json({ error: 'At least one of github_link or text_answer must be provided' }, 400);
+  if ((!github_link && !text_answer) || (github_link && text_answer))
+    return c.json({ error: 'Exactly ONE of github_link or text_answer must be provided' }, 400);
 
   const db = database();
   const assignment = await db.selectFrom('assignments')
@@ -189,6 +196,8 @@ assignmentApp.get('/assignment/:assignment_id/submissions', async (c) => {
       'assignment_submissions.github_link',
       'assignment_submissions.text_answer',
       'assignment_submissions.submitted_at',
+      'assignment_submissions.grade',
+      'assignment_submissions.remarks'
     ])
     .execute();
 
@@ -231,4 +240,74 @@ assignmentApp.delete('/assignment/:assignment_id', async (c) => {
     .execute();
 
   return c.json({ message: 'Assignment deleted' }, 200);
+});
+
+// ─── GET /assignment/:assignment_id/submission ───────────────────────────────
+
+assignmentApp.get('/assignment/:assignment_id/submission', async (c) => {
+  const token = c.req.query('token');
+  if (!token) return c.json({ error: 'Unauthorized' }, 401);
+
+  let user: Awaited<ReturnType<typeof getAuthUser>>;
+  try {
+    user = await getAuthUser(token);
+  } catch {
+    return c.json({ error: 'Invalid token' }, 401);
+  }
+  if (!user) return c.json({ error: 'User not found' }, 401);
+
+  const assignment_id = Number(c.req.param('assignment_id'));
+  if (isNaN(assignment_id)) return c.json({ error: 'Invalid ID' }, 400);
+
+  const db = database();
+  const sub = await db.selectFrom('assignment_submissions')
+    .where('assignment_id', '=', assignment_id)
+    .where('user_id', '=', user.id as number)
+    .selectAll()
+    .executeTakeFirst();
+
+  if (!sub) return c.json({ message: 'Not submitted yet' }, 404);
+  return c.json(sub, 200);
+});
+
+// ─── PATCH /assignment/:assignment_id/submissions/:submission_id/grade ───────
+
+assignmentApp.patch('/assignment/:assignment_id/submissions/:submission_id/grade', async (c) => {
+  const body = await c.req.json();
+  const { token, grade, remarks } = body;
+
+  if (!token) return c.json({ error: 'Unauthorized' }, 401);
+
+  let user: Awaited<ReturnType<typeof getAuthUser>>;
+  try {
+    user = await getAuthUser(token);
+  } catch {
+    return c.json({ error: 'Invalid token' }, 401);
+  }
+  if (!user) return c.json({ error: 'User not found' }, 401);
+  if ((user.role ?? 'mentee') !== 'mentor') return c.json({ error: 'Only mentors grade' }, 403);
+
+  const assignment_id = Number(c.req.param('assignment_id'));
+  const submission_id = Number(c.req.param('submission_id'));
+  if (isNaN(assignment_id) || isNaN(submission_id)) return c.json({ error: 'Invalid IDs' }, 400);
+
+  const db = database();
+  const assignment = await db.selectFrom('assignments')
+    .where('assignment_id', '=', assignment_id)
+    .select(['created_by'])
+    .executeTakeFirst();
+
+  if (!assignment || assignment.created_by !== (user.id as number))
+    return c.json({ error: 'Forbidden' }, 403);
+
+  await db.updateTable('assignment_submissions')
+    .set({
+      grade: typeof grade === 'string' ? grade : undefined,
+      remarks: typeof remarks === 'string' ? remarks : undefined
+    })
+    .where('submission_id', '=', submission_id)
+    .where('assignment_id', '=', assignment_id)
+    .execute();
+
+  return c.json({ message: 'Graded successfully' }, 200);
 });

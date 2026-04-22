@@ -45,6 +45,7 @@ interface QuizTable {
   domain: string;       // web | app | dsa | aiml | uiux
   created_by: number;   // FK → users.id
   created_at: Generated<number>;
+  is_active: Generated<number>; // 0 or 1
 }
 
 interface QuizQuestionTable {
@@ -56,16 +57,25 @@ interface QuizQuestionTable {
   option_c: string;
   option_d: string;
   correct_option: string; // 'a' | 'b' | 'c' | 'd'
+  marks: Generated<number>;
 }
 
 interface QuizAttemptTable {
   attempt_id: Generated<number>;
   quiz_id: number;      // FK → quizzes.quiz_id
   user_id: number;      // FK → users.id
-  score: number;
-  total: number;
-  answers: string;      // JSON string: { question_id: chosen_option }
-  attempted_at: Generated<number>;
+  started_at: Generated<number>;
+  submitted_at?: number;
+  total_score: Generated<number>;
+  is_submitted: Generated<number>; // 0 or 1
+}
+
+interface QuizAnswerTable {
+  answer_id: Generated<number>;
+  attempt_id: number;
+  question_id: number;
+  selected_option?: string;
+  is_correct: Generated<number>; // 0 or 1
 }
 
 // ─── Assignment Tables ────────────────────────────────────────────────────────
@@ -77,6 +87,8 @@ interface AssignmentTable {
   domain: string;       // web | app | dsa | aiml | uiux
   created_by: number;   // FK → users.id
   created_at: Generated<number>;
+  due_date?: number;
+  reference_link?: string;
 }
 
 interface AssignmentSubmissionTable {
@@ -86,6 +98,8 @@ interface AssignmentSubmissionTable {
   github_link?: string;
   text_answer?: string;
   submitted_at: Generated<number>;
+  grade?: string;
+  remarks?: string;
 }
 
 export interface Database {
@@ -97,6 +111,7 @@ export interface Database {
   quizzes: QuizTable;
   quiz_questions: QuizQuestionTable;
   quiz_attempts: QuizAttemptTable;
+  quiz_answers: QuizAnswerTable;
   // Assignment feature
   assignments: AssignmentTable;
   assignment_submissions: AssignmentSubmissionTable;
