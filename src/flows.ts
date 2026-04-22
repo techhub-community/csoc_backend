@@ -5,19 +5,6 @@ import { Hono } from 'hono';
 
 export const flowsApp = new Hono();
 
-flowsApp.get('/verify-account', async (c) => {
-  const { token } = c.req.query();
-  const db = database();
-
-  try {
-    const email = (await jose.jwtVerify(token, JWT_SECRET)).payload.email as string;
-    await db.updateTable('users').set({ verified: true }).where('email', '=', email).execute();
-    return c.redirect(frontDomain + '/auth?verified=true');
-  } catch (error) {
-    return c.json({ error: 'Invalid or expired token' }, 400);
-  }
-});
-
 flowsApp.post('/forgot-password', async (c) => {
   const { email } = await c.req.json();
   const db = database();

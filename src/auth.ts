@@ -104,7 +104,7 @@ authApp.post('/register', async (c) => {
 
   const newUser = {
     password: hashedPassword,
-    verified: false,
+    verified: true,
     program,
     mobile,
     email,
@@ -117,14 +117,6 @@ authApp.post('/register', async (c) => {
   try {
     await db.insertInto('users')
       .values(newUser).execute();
-    const token = await signPayload({ email }, '7d');
-    const verifyLink = `${backDomain}/verify-account?token=${token}`;
-
-    await sendMail(name, email, 'Codeshack: CSOC Account Verification', {
-      html: accVerifyHtml(verifyLink),
-      text: accVerifyText(verifyLink)
-    });
-
     if (opt) {
       try {
         const { email: _, sender, senderProgram } = (await jose
@@ -147,7 +139,7 @@ authApp.post('/register', async (c) => {
       }
     }
     
-    return c.json({ message: 'User registered successfully. Please check your email to verify your account.' }, 201);
+    return c.json({ message: 'User registered successfully.' }, 201);
   } catch (error) {
     console.log(error);
     return c.json({ error: 'Email already exists' }, 409);
