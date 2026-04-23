@@ -46,7 +46,11 @@ assignmentApp.post('/assignment/create', async (c) => {
       description: description.trim(), 
       domain, 
       created_by: user.id as number,
-      due_date: typeof due_date === 'number' ? due_date : undefined,
+      due_date: typeof due_date === 'number'
+        ? due_date
+        : (typeof due_date === 'string' && due_date.trim())
+          ? Math.floor(Date.parse(due_date) / 1000)
+          : undefined,
       reference_link: typeof reference_link === 'string' ? reference_link.trim() : undefined
     })
     .returning('assignment_id')
