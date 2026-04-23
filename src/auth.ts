@@ -118,6 +118,27 @@ authApp.post('/register', async (c) => {
   };
 
   try {
+    // Check for existing user with same email or USN
+    const existingUser = await db.selectFrom('users')
+      .select(['email', 'usn'])
+      .where(qb => {
+        const conditions = [qb('email', '=', email)];
+        if (role === 'mentee' && usn) {
+          conditions.push(qb('usn', '=', usn));
+        }
+        return qb.or(conditions);
+      })
+      .executeTakeFirst();
+
+    if (existingUser) {
+      if (existingUser.email === email) {
+        return c.json({ error: 'Email already registered' }, 409);
+      }
+      if (role === 'mentee' && existingUser.usn === usn) {
+        return c.json({ error: 'USN already registered' }, 409);
+      }
+    }
+
     await db.insertInto('users')
       .values(newUser).execute();
     if (opt) {
@@ -145,7 +166,7 @@ authApp.post('/register', async (c) => {
     return c.json({ message: 'User registered successfully.' }, 201);
   } catch (error) {
     console.log(error);
-    return c.json({ error: 'Email already exists' }, 409);
+    return c.json({ error: 'Registration failed. Please try again later.' }, 500);
   }
 });
 
