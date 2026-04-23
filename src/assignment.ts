@@ -76,7 +76,7 @@ assignmentApp.get('/assignment/list', async (c) => {
   const role = user.role ?? 'mentee';
 
   if (role === 'mentor') {
-    const assignments = await db.selectFrom('assignments').selectAll()
+    const assignments = await db.selectFrom('assignments')
       .where('created_by', '=', user.id as number)
       .select(['assignment_id', 'title', 'description', 'domain', 'created_at', 'due_date', 'reference_link'])
       .execute();
@@ -85,7 +85,7 @@ assignmentApp.get('/assignment/list', async (c) => {
   }
 
   // Mentee: return assignments for their domain with submitted flag
-  const assignments = await db.selectFrom('assignments').selectAll()
+  const assignments = await db.selectFrom('assignments')
     .where('domain', '=', user.program)
     .select(['assignment_id', 'title', 'description', 'domain', 'created_at', 'due_date', 'reference_link'])
     .execute();
@@ -124,8 +124,8 @@ assignmentApp.post('/assignment/:assignment_id/submit', async (c) => {
   const assignment_id = Number(c.req.param('assignment_id'));
   if (isNaN(assignment_id)) return c.json({ error: 'Invalid assignment ID' }, 400);
 
-  if ((!github_link && !text_answer) || (github_link && text_answer))
-    return c.json({ error: 'Exactly ONE of github_link or text_answer must be provided' }, 400);
+  if (!github_link && !text_answer)
+    return c.json({ error: 'At least one of github_link or text_answer must be provided' }, 400);
 
   const db = database();
   const assignment = await db.selectFrom('assignments').selectAll()
